@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
     app: {
       host: config.app.host,
       port: config.app.port,
-      mode: config.app.mode
+      mode: config.app.mode,
     },
     db
   });

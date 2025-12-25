@@ -1,10 +1,13 @@
 // src/routes/index.ts
 import { Router } from 'express';
 import health from './health';
+import ready from './ready';
+import auth from './auth';
 
 const router = Router();
 
 router.use('/health', health);
+router.use('/ready', ready);
+router.use('/auth', auth);
 
-// future: router.use('/auth', authRouter); router.use('/leads', leadsRouter)
 export default router;
