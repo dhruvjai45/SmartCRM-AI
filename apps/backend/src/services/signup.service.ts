@@ -30,7 +30,6 @@ export async function signupService(
   try {
     await client.query('BEGIN');
 
-    // 1️⃣ Create company
     const companyRes = await client.query(
       `
       INSERT INTO smartcrm.companies (
@@ -48,7 +47,6 @@ export async function signupService(
     const companyId = companyRes.rows[0].id;
     const trialEndsAt = companyRes.rows[0].trial_ends_at;
 
-    // 2️⃣ Create admin user
     const userRes = await client.query(
       `
       INSERT INTO smartcrm.users (
