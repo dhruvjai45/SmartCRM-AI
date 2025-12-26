@@ -1,10 +1,10 @@
-// src/config/env.ts
+// apps/backend/src/config/env.ts
 import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config({ path: path.resolve(process.cwd(), '../../.env') }); // loads repo-level .env
+dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 
-function required(name: string, v?: string | undefined): string {
+function required(name: string, v?: string): string {
   if (!v) throw new Error(`Missing required env var: ${name}`);
   return v;
 }
@@ -15,6 +15,11 @@ export const config = {
     port: Number(process.env.APP_PORT ?? 4000),
     mode: process.env.NODE_ENV ?? 'development',
   },
+
+  frontend: {
+    url: process.env.FRONTEND_URL ?? 'http://localhost:3000',
+  },
+
   db: {
     host: required('DATABASE_HOST', process.env.DATABASE_HOST),
     port: Number(process.env.DATABASE_PORT ?? 5433),
@@ -22,16 +27,16 @@ export const config = {
     password: required('DATABASE_PASSWORD', process.env.DATABASE_PASSWORD),
     database: required('DATABASE_NAME', process.env.DATABASE_NAME),
   },
-  smtp: {
-    host: process.env.SMTP_HOST ?? '',
-    port: Number(process.env.SMTP_PORT ?? 587),
-    user: process.env.SMTP_USER ?? '',
-    pass: process.env.SMTP_PASS ?? ''
+
+  email: {
+    address: required('EMAIL_ADDRESS', process.env.EMAIL_ADDRESS),
+    password: required('EMAIL_PASSWORD', process.env.EMAIL_PASSWORD),
   },
+
   security: {
-    jwtSecret: process.env.JWT_SECRET ?? '',
-    refreshKey: process.env.REFRESH_TOKEN_KEY ?? '',
-    encryptionKey: process.env.ENCRYPTION_KEY ?? ''
+    jwtSecret: required('JWT_SECRET', process.env.JWT_SECRET),
+    refreshKey: required('REFRESH_TOKEN_KEY', process.env.REFRESH_TOKEN_KEY),
+    encryptionKey: required('ENCRYPTION_KEY', process.env.ENCRYPTION_KEY),
   }
 };
 
