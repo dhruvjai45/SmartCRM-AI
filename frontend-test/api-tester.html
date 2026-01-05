@@ -1,0 +1,329 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SmartCRM — API Tester</title>
+  <style>
+    body { font-family: Inter, Arial; padding: 18px; max-width: 1000px; margin: auto; }
+    h1 { margin-bottom: 4px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+    .card { border:1px solid #ddd; padding:12px; border-radius:6px; background:#fafafa; margin-bottom:12px; width:100%; }
+    label { display:block; font-size:13px; margin-top:8px; }
+    input, select, textarea { padding:8px; width:100%; box-sizing: border-box; margin-top:6px; }
+    button { padding:8px 12px; margin-top:8px; cursor:pointer; }
+    pre { background:#111; color:#bfe; padding:10px; border-radius:6px; overflow:auto; max-height:260px; }
+    .small { font-size:13px; color:#666; }
+    .two { width:48%; min-width:240px; }
+  </style>
+</head>
+<body>
+  <h1>SmartCRM — API Quick Tester</h1>
+  <p class="small">Default API base: <code id="apiBaseLabel"></code>. Change in code if needed.</p>
+
+  <div class="card">
+    <strong>Tokens</strong>
+    <div class="row">
+      <div class="two">
+        <label>Access token (stored)</label>
+        <textarea id="accessToken" rows="3"></textarea>
+      </div>
+      <div class="two">
+        <label>Refresh token (stored)</label>
+        <textarea id="refreshToken" rows="3"></textarea>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <button id="clearTokens">Clear tokens</button>
+    </div>
+  </div>
+
+  <div class="card row">
+    <div class="two">
+      <strong>Health / Readiness</strong>
+      <div style="margin-top:8px">
+        <button id="btnHealth">GET /api/health</button>
+        <button id="btnReady">GET /api/ready</button>
+      </div>
+    </div>
+
+    <div class="two">
+      <strong>Protected endpoints</strong>
+      <div style="margin-top:8px">
+        <button id="btnProtected">GET /api/protected-demo</button>
+        <button id="btnAdminOnly">GET /api/admin-only-demo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>Auth — Signup</strong> <div class="small">Creates company + admin user</div>
+    <label>Email</label><input id="suEmail" value="admin@test.local">
+    <label>Password</label><input id="suPassword" value="Test12345" type="password">
+    <label>Name</label><input id="suName" value="Admin User">
+    <label>Company name</label><input id="suCompany" value="Local Company">
+    <button id="btnSignup">POST /api/auth/signup</button>
+  </div>
+
+  <div class="card row">
+    <div class="two">
+      <strong>Auth — Login</strong>
+      <label>Email</label><input id="liEmail" value="admin@test.local">
+      <label>Password</label><input id="liPassword" value="Test12345" type="password">
+      <button id="btnLogin">POST /api/auth/login</button>
+    </div>
+    <div class="two">
+      <strong>Auth — Refresh / Logout</strong>
+      <label>Refresh token (or use stored)</label>
+      <input id="manualRefresh" placeholder="paste refresh token here or leave blank">
+      <div style="margin-top:8px">
+        <button id="btnRefresh">POST /api/auth/refresh</button>
+        <button id="btnLogout">POST /api/auth/logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card row">
+    <div class="two">
+      <strong>Invitations — Create</strong>
+      <label>Invite email</label><input id="inviteEmail" value="newuser@example.com">
+      <label>Role</label>
+      <select id="inviteRole">
+        <option value="sales">sales</option>
+        <option value="manager">manager</option>
+        <option value="admin">admin</option>
+      </select>
+      <button id="btnInviteCreate">POST /api/invitations</button>
+    </div>
+
+    <div class="two">
+      <strong>Invitations — Accept</strong>
+      <label>Invite token (from create response)</label><input id="acceptToken">
+      <label>Name</label><input id="acceptName" value="New User">
+      <label>Password</label><input id="acceptPass" value="StrongPass123" type="password">
+      <button id="btnInviteAccept">POST /api/invitations/accept</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>Users (admin)</strong>
+    <div class="small">List, update role, activate/deactivate</div>
+    <div style="margin-top:8px" class="row">
+      <div style="flex:1; min-width:280px">
+        <button id="btnListUsers">GET /api/users</button>
+        <pre id="usersList">...</pre>
+      </div>
+
+      <div style="flex:1; min-width:280px">
+        <label>Target User ID</label><input id="targetUserId">
+        <label>New role</label>
+        <select id="newRole"><option>admin</option><option>manager</option><option>sales</option></select>
+        <button id="btnUpdateRole">PATCH /api/users/:id/role</button>
+
+        <label style="margin-top:6px">Set active</label>
+        <select id="setActive"><option value="true">active</option><option value="false">inactive</option></select>
+        <button id="btnSetActive">PATCH /api/users/:id/status</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>Raw request / response inspector</strong>
+    <label>Request output</label>
+    <pre id="reqOut">—</pre>
+    <label>Response</label>
+    <pre id="resOut">—</pre>
+  </div>
+
+<script>
+  const API_BASE = (window.API_BASE = 'http://localhost:4000/api');
+  document.getElementById('apiBaseLabel').textContent = API_BASE;
+
+  // token storage helpers
+  function setTokens(access, refresh) {
+    if (access) {
+      localStorage.setItem('sc_access', access);
+      document.getElementById('accessToken').value = access;
+    }
+    if (refresh) {
+      localStorage.setItem('sc_refresh', refresh);
+      document.getElementById('refreshToken').value = refresh;
+    }
+  }
+  function loadTokensToUI() {
+    document.getElementById('accessToken').value = localStorage.getItem('sc_access') || '';
+    document.getElementById('refreshToken').value = localStorage.getItem('sc_refresh') || '';
+  }
+  function clearTokens() {
+    localStorage.removeItem('sc_access');
+    localStorage.removeItem('sc_refresh');
+    loadTokensToUI();
+  }
+  loadTokensToUI();
+
+  function apiFetch(path, opts = {}) {
+    const full = API_BASE + path;
+    const headers = opts.headers || {};
+    if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    const access = localStorage.getItem('sc_access');
+    if (access) headers['Authorization'] = 'Bearer ' + access;
+    const init = {
+      method: opts.method || 'GET',
+      headers,
+      body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body,
+    };
+    document.getElementById('reqOut').textContent = `${init.method} ${full}\n\nHeaders:\n${JSON.stringify(headers,null,2)}\n\nBody:\n${init.body||''}`;
+    return fetch(full, init).then(async res => {
+      const txt = await res.text();
+      let parsed;
+      try { parsed = JSON.parse(txt); } catch(e) { parsed = txt; }
+      document.getElementById('resOut').textContent = `HTTP ${res.status}\n\n${typeof parsed === 'string' ? parsed : JSON.stringify(parsed,null,2)}`;
+      if (!res.ok) throw { status: res.status, body: parsed };
+      return parsed;
+    });
+  }
+
+  // Buttons & forms
+  document.getElementById('clearTokens').onclick = () => clearTokens();
+
+  document.getElementById('btnHealth').onclick = () => {
+    apiFetch('/health').catch(e=>console.error(e));
+  };
+  document.getElementById('btnReady').onclick = () => {
+    apiFetch('/ready').catch(e=>console.error(e));
+  };
+  document.getElementById('btnProtected').onclick = () => {
+    apiFetch('/protected-demo').then(r=>console.log(r)).catch(e=>console.error(e));
+  };
+  document.getElementById('btnAdminOnly').onclick = () => {
+    apiFetch('/admin-only-demo').then(r=>console.log(r)).catch(e=>console.error(e));
+  };
+
+  document.getElementById('btnSignup').onclick = async () => {
+    const body = {
+      email: document.getElementById('suEmail').value,
+      password: document.getElementById('suPassword').value,
+      name: document.getElementById('suName').value,
+      companyName: document.getElementById('suCompany').value
+    };
+    try {
+      const r = await apiFetch('/auth/signup', { method:'POST', body });
+      alert('Signup OK. Use login to obtain tokens. Response shown in Response pane.');
+      console.log(r);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  document.getElementById('btnLogin').onclick = async () => {
+    const body = { email: document.getElementById('liEmail').value, password: document.getElementById('liPassword').value };
+    try {
+      const r = await apiFetch('/auth/login', { method:'POST', body });
+      // expected: { accessToken, refreshToken, user }
+      if (r.accessToken) setTokens(r.accessToken, r.refreshToken);
+      loadTokensToUI();
+      alert('Login OK — tokens saved to storage and UI.');
+    } catch (err) {
+      console.error(err);
+      alert('Login failed — check response pane.');
+    }
+  };
+
+  document.getElementById('btnRefresh').onclick = async () => {
+    const manual = document.getElementById('manualRefresh').value.trim();
+    const token = manual || localStorage.getItem('sc_refresh');
+    if (!token) return alert('No refresh token available');
+    try {
+      const r = await apiFetch('/auth/refresh', { method:'POST', body: { refreshToken: token }});
+      // expected: { accessToken, refreshToken }
+      if (r.accessToken) setTokens(r.accessToken, r.refreshToken);
+      loadTokensToUI();
+      alert('Refresh OK — tokens rotated.');
+    } catch (err) {
+      console.error(err);
+      alert('Refresh failed — check response pane.');
+    }
+  };
+
+  document.getElementById('btnLogout').onclick = async () => {
+    const token = localStorage.getItem('sc_refresh');
+    if (!token) { alert('No refresh token stored'); return; }
+    try {
+      await apiFetch('/auth/logout', { method:'POST', body: { refreshToken: token }});
+      clearTokens();
+      alert('Logged out (refresh revoked)');
+    } catch (err) {
+      console.error(err);
+      alert('Logout failed — check response pane.');
+    }
+  };
+
+  document.getElementById('btnInviteCreate').onclick = async () => {
+    try {
+      const body = { email: document.getElementById('inviteEmail').value, role: document.getElementById('inviteRole').value };
+      const r = await apiFetch('/invitations', { method:'POST', body });
+      // show invite token (raw token) in response pane
+      console.log('invite create result', r);
+      alert('Invitation created. Invite token shown in Response pane.');
+    } catch (err) {
+      console.error(err);
+      alert('Invite create failed.');
+    }
+  };
+
+  document.getElementById('btnInviteAccept').onclick = async () => {
+    const token = document.getElementById('acceptToken').value.trim();
+    if (!token) return alert('Paste invite token from create response.');
+    const body = { token, name: document.getElementById('acceptName').value, password: document.getElementById('acceptPass').value };
+    try {
+      const r = await apiFetch('/invitations/accept', { method:'POST', body });
+      alert('Invitation accepted — user created.');
+      // optionally, login with the new user
+    } catch (err) {
+      console.error(err);
+      alert('Accept failed.');
+    }
+  };
+
+  document.getElementById('btnListUsers').onclick = async () => {
+    try {
+      const r = await apiFetch('/users');
+      document.getElementById('usersList').textContent = JSON.stringify(r, null, 2);
+      if (Array.isArray(r.users) && r.users.length) {
+        // fill targetUserId with first user
+        document.getElementById('targetUserId').value = r.users[0].id;
+      }
+    } catch (err) {
+      console.error(err);
+      alert('List failed.');
+    }
+  };
+
+  document.getElementById('btnUpdateRole').onclick = async () => {
+    const id = document.getElementById('targetUserId').value.trim();
+    const role = document.getElementById('newRole').value;
+    if (!id) return alert('Target user id required');
+    try {
+      await apiFetch(`/users/${id}/role`, { method:'PATCH', body:{ role }});
+      alert('Role updated. Refresh user list.');
+    } catch (err) {
+      console.error(err);
+      alert('Update role failed.');
+    }
+  };
+
+  document.getElementById('btnSetActive').onclick = async () => {
+    const id = document.getElementById('targetUserId').value.trim();
+    const isActive = document.getElementById('setActive').value === 'true';
+    if (!id) return alert('Target user id required');
+    try {
+      await apiFetch(`/users/${id}/status`, { method:'PATCH', body:{ isActive }});
+      alert('Status updated. Refresh user list.');
+    } catch (err) {
+      console.error(err);
+      alert('Set active failed. Check response.');
+    }
+  };
+
+</script>
+</body>
+</html>

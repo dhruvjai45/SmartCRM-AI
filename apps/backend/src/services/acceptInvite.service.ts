@@ -6,12 +6,14 @@ function hashInviteToken(token: string) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+
 export async function acceptInvitation(
   token: string,
   name: string,
   password: string
 ) {
   const tokenHash = hashInviteToken(token);
+
 
   const inviteRes = await pool.query(
     `

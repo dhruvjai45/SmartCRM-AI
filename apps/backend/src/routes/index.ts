@@ -6,6 +6,7 @@ import auth from './auth';
 import authLogout from './authLogout';
 import { requireAuth, requireRole } from '../auth/middleware';
 import invitations from './invitations';
+import users from './users';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.use('/ready', ready);
 router.use('/auth', auth);
 router.use('/auth/logout', authLogout);
 router.use('/invitations', invitations);
+router.use('/users', users);
 
 router.get('/protected-demo', requireAuth, (req, res) => {
   return res.json({ hello: 'protected', user: req.user });

@@ -15,9 +15,9 @@ const REFRESH_TTL = '30d';
 const ISSUER = 'smartcrm';
 
 export function signAccessToken(identity: {
-  userId: string;
-  companyId: string;
-  role: string;
+  userId: string,
+  companyId: string,
+  role: string
 }): string {
   return jwt.sign(
     {
